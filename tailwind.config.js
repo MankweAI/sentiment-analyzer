@@ -1,41 +1,33 @@
 /** @type {import('tailwindcss').Config} */
-const config = {
-  content: [
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-  ],
+module.exports = {
+  content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        // Energetic Primary: Lime Green
+        // Vibrant, No-Blue Palette
         primary: {
-          light: "#a3e635", // lime-400
-          DEFAULT: "#84cc16", // lime-500
-          dark: "#65a30d", // lime-600
+          DEFAULT: "#16a34a", // Green
+          dark: "#15803d",
+          light: "#dcfceb",
         },
-        // Call-to-Action: Amber/Orange
         cta: {
-          light: "#fcd34d", // amber-300
-          DEFAULT: "#f59e0b", // amber-500
-          dark: "#d97706", // amber-600
+          DEFAULT: "#f59e0b", // Amber
+          dark: "#d97706",
+          light: "#fffbeb",
         },
-        // Danger / "Leak": Red
         danger: {
-          light: "#fca5a5", // red-400
-          DEFAULT: "#ef4444", // red-500
-          dark: "#dc2626", // red-600
+          DEFAULT: "#dc2626", // Red
+          dark: "#b91c1c",
+          light: "#fef2f2",
         },
-        // Status Colors
-        status: {
-          pending: "#f59e0b", // amber-500 (CTA)
-          contacted: "#0ea5e9", // <-- The only blue, for "in-progress"
-          meeting: "#22c55e", // green-500
-          won: "#16a34a", // green-600
-          lost: "#ef4444", // red-500 (Danger)
-        },
+        // Status Colors (Note: sky-500 is used for a neutral 'Contacted' status)
+        "status-meeting": "#16a34a",
+        "status-won": "#15803d",
+        "status-lost": "#dc2626",
+        "status-pending": "#f59e0b",
+        "sky-500": "#0ea5e9",
       },
     },
   },
   plugins: [require("@tailwindcss/forms")],
 };
-export default config;

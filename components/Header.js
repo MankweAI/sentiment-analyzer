@@ -1,21 +1,18 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   FireIcon,
   ChartBarIcon,
+  DocumentPlusIcon,
   UsersIcon,
-  PlusIcon,
 } from "@heroicons/react/24/solid";
+import { usePathname } from "next/navigation";
 
 const navigation = [
-  { name: "Prospects (Call List)", href: "/dashboard", icon: UsersIcon },
-  {
-    name: "Sentiment Dashboard",
-    href: "/dashboard/report",
-    icon: ChartBarIcon,
-  },
-  { name: "Scripts", href: "/dashboard/scripts", icon: FireIcon },
+  { name: "Prospects", href: "/", icon: UsersIcon },
+  { name: "Dashboard", href: "/dashboard", icon: ChartBarIcon },
+  { name: "Scripts", href: "/scripts", icon: FireIcon },
+  { name: "Add Prospect", href: "/prospects/new", icon: DocumentPlusIcon },
 ];
 
 function classNames(...classes) {
@@ -26,50 +23,36 @@ export default function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="bg-white shadow-md sticky top-0 z-50">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 justify-between">
-          <div className="flex">
-            <div className="flex flex-shrink-0 items-center">
-              <span className="text-2xl font-bold text-primary-dark">SASP</span>
-            </div>
-            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={classNames(
-                    pathname === item.href
-                      ? "border-primary-dark text-slate-900"
-                      : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700",
-                    "inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium"
-                  )}
-                >
-                  <item.icon
-                    className={classNames(
-                      pathname === item.href
-                        ? "text-primary-dark"
-                        : "text-slate-400",
-                      "-ml-0.5 mr-2 h-5 w-5"
-                    )}
-                    aria-hidden="true"
-                  />
-                  {item.name}
-                </Link>
-              ))}
-            </div>
-          </div>
+    <header className="bg-white shadow-md">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Top">
+        <div className="w-full py-4 flex items-center justify-between border-b border-primary-light">
           <div className="flex items-center">
-            <Link
-              href="/dashboard/new"
-              className="inline-flex items-center gap-2 rounded-md bg-primary-DEFAULT px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-dark"
-            >
-              <PlusIcon className="h-5 w-5" />
-              Add Prospect
+            <Link href="/" className="flex items-center gap-2">
+              <FireIcon className="h-8 w-auto text-cta-dark" />
+              <span className="text-2xl font-bold text-slate-900">SASP</span>
             </Link>
           </div>
+          <div className="hidden ml-10 space-x-4 lg:flex">
+            {navigation.map((link) => (
+              <Link
+                key={link.name}
+                href={link.href}
+                className={classNames(
+                  pathname === link.href ||
+                    (link.name === "Prospects" && pathname === "/") ||
+                    (link.name === "Scripts" && pathname.startsWith("/scripts"))
+                    ? "bg-primary-light text-primary-dark"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50",
+                  "inline-flex items-center gap-2 rounded-md py-2 px-3 text-sm font-medium transition-colors"
+                )}
+              >
+                <link.icon className="h-5 w-5" />
+                {link.name}
+              </Link>
+            ))}
+          </div>
         </div>
-      </div>
+      </nav>
     </header>
   );
 }
