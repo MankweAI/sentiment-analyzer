@@ -1,212 +1,168 @@
 "use client";
 import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import CallSuitModal from "@/components/CallSuitModal";
-import { PhoneIcon, PencilIcon, FireIcon } from "@heroicons/react/24/solid";
+import {
+  PhoneIcon,
+  PencilSquareIcon,
+  UserCircleIcon,
+  MapPinIcon,
+} from "@heroicons/react/24/solid";
+import CallSuitModal from "@/components/CallSuitModal"; // Assuming this path is correct based on jsconfig.json
+// Note: The original file list had CallSuitModal.js and QuickLogModal.js with identical code.
+// I am using CallSuitModal as it seems to be the one intended for use.
 
-// Status Colors
-const statusConfig = {
-  Pending: { color: "border-status-pending", title: "Pending (To Call)" },
-  Contacted: { color: "border-sky-500", title: "Contacted (Follow-up)" },
-  "Meeting Booked": { color: "border-status-meeting", title: "Meeting Booked" },
-  "Closed - Won": { color: "border-status-won", title: "Closed - Won" },
-  "Closed - Lost": { color: "border-status-lost", title: "Closed - Lost" },
-};
-
-const columns = [
-  "Pending",
-  "Contacted",
-  "Meeting Booked",
-  "Closed - Won",
-  "Closed - Lost",
-];
-
-export default function ProspectManager() {
+export default function ProspectList() {
   const [prospects, setProspects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedProspect, setSelectedProspect] = useState(null);
-
-  // FIX: Function is declared *before* useEffect
-  async function fetchProspects() {
-    const { data, error } = await supabase
-      .from("prospects")
-      .select("*")
-      .order("businessName", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching prospects:", error.message || error);
-    } else {
-      setProspects(data);
-    }
-    setLoading(false);
-  }
+  const router = useRouter();
 
   useEffect(() => {
+    // BUG FIX: The data fetching function is moved *inside* the useEffect
+    // to prevent synchronous state updates at the start of the effect.
+    const fetchProspects = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("prospects")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching prospects:", error.message || error);
+        setError(error.message);
+      } else {
+        setProspects(data);
+      }
+      setLoading(false);
+    };
+
     fetchProspects();
-  }, []);
+  }, []); // Empty dependency array is correct
+
+  const handleCallClick = (prospect) => {
+    setSelectedProspect(prospect);
+  };
+
+  const handleEditClick = (id) => {
+    // Navigate to the edit page
+    router.push(`/prospects/${id}/edit`);
+  };
+
+  const handleModalClose = () => {
+    setSelectedProspect(null);
+  };
 
   const handleLogSaved = () => {
+    setSelectedProspect(null);
+    // Re-fetch prospects to update status (e.g., "Pending" -> "Contacted")
+    const fetchProspects = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("prospects")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) setError(error.message);
+      else setProspects(data);
+      setLoading(false);
+    };
     fetchProspects();
-    setSelectedProspect(null);
   };
 
-  const handleCloseModal = () => {
-    setSelectedProspect(null);
-  };
-
-  async function updateStatus(id, newStatus) {
-    // Optimistic update for UI speed
-    setProspects((prevProspects) =>
-      prevProspects.map((p) => (p.id === id ? { ...p, status: newStatus } : p))
-    );
-    // Update Supabase in the background
-    const { error } = await supabase
-      .from("prospects")
-      .update({ status: newStatus })
-      .eq("id", id);
-
-    if (error) {
-      console.error("Error updating status:", error.message);
-      fetchProspects(); // Revert on error
+  const getStatusColor = (status) => {
+    switch (status) {
+      case "Meeting Booked":
+        return "bg-status-meeting text-green-800";
+      case "Contacted":
+        return "bg-status-contacted text-blue-800";
+      case "Pending":
+      default:
+        return "bg-status-pending text-amber-800";
     }
-  }
-
-  const getProspectsByStatus = (status) => {
-    return prospects.filter((p) => p.status === status);
   };
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">
-        Prospect Call List ({prospects.length})
-      </h1>
+    <>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-2xl font-bold text-slate-900 mb-6">
+          Prospects (Call List)
+        </h1>
 
-      {loading ? (
-        <p className="text-slate-600 animate-pulse">Loading prospects...</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5">
-          {columns.map((status) => {
-            const config = statusConfig[status];
-            const prospectsInColumn = getProspectsByStatus(status);
-            return (
-              <div key={status} className="bg-slate-200/60 rounded-lg p-3">
-                <h2
-                  className={`text-lg font-semibold text-slate-800 border-b-4 ${config.color} pb-2 mb-4`}
+        {loading && (
+          <p className="text-slate-600 animate-pulse">Loading prospects...</p>
+        )}
+        {error && (
+          <div className="bg-danger-light border border-danger-dark text-danger-dark px-4 py-3 rounded mb-4">
+            <p>Error: {error}</p>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <div className="bg-white shadow-xl rounded-lg overflow-hidden">
+            <ul role="list" className="divide-y divide-slate-200">
+              {prospects.map((prospect) => (
+                <li
+                  key={prospect.id}
+                  className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 px-4 py-5 sm:px-6"
                 >
-                  {config.title} ({prospectsInColumn.length})
-                </h2>
-                <div className="space-y-4">
-                  {prospectsInColumn.map((prospect) => (
-                    <ProspectCard
-                      key={prospect.id}
-                      prospect={prospect}
-                      onLogCall={() => setSelectedProspect(prospect)}
-                      onUpdateStatus={updateStatus}
+                  <div className="flex min-w-0 gap-x-4">
+                    <UserCircleIcon
+                      className="h-12 w-12 flex-none text-slate-300"
+                      aria-hidden="true"
                     />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                    <div className="min-w-0 flex-auto">
+                      <p className="text-sm font-semibold leading-6 text-slate-900">
+                        {prospect.businessName}
+                      </p>
+                      <p className="mt-1 flex text-xs leading-5 text-slate-500">
+                        <MapPinIcon className="h-4 w-4 text-slate-400 mr-1" />
+                        {prospect.location}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-x-4">
+                    <div className="hidden sm:flex sm:flex-col sm:items-end">
+                      <p className="text-sm leading-6 text-slate-900">
+                        {prospect.phone}
+                      </p>
+                      <p
+                        className={`mt-1 text-xs leading-5 ${getStatusColor(
+                          prospect.status
+                        )} font-medium rounded-full px-2 py-0.5 inline-block`}
+                      >
+                        {prospect.status}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleCallClick(prospect)}
+                      className="rounded-md bg-cta-DEFAULT px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cta-dark"
+                    >
+                      <PhoneIcon className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => handleEditClick(prospect.id)}
+                      className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-600 shadow-sm hover:bg-slate-200"
+                    >
+                      <PencilSquareIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
 
+      {/* The Call Suit Modal */}
       {selectedProspect && (
         <CallSuitModal
           prospect={selectedProspect}
-          onClose={handleCloseModal}
+          onClose={handleModalClose}
           onLogSaved={handleLogSaved}
         />
       )}
-    </div>
-  );
-}
-
-function ProspectCard({ prospect, onLogCall, onUpdateStatus }) {
-  const { id, businessName, location, phone, leaks, competitor, status } =
-    prospect;
-  const config = statusConfig[status];
-
-  return (
-    <div
-      className={`bg-white p-4 rounded-lg shadow-md border-l-4 ${config.color}`}
-    >
-      <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-bold text-slate-900">{businessName}</h3>
-        <Link
-          href={`/prospects/${id}/edit`}
-          className="text-slate-400 hover:text-cta-dark"
-        >
-          <PencilIcon className="w-5 h-5" />
-        </Link>
-      </div>
-
-      <p className="text-sm text-slate-600 -mt-2 mb-2">{location}</p>
-      <a
-        href={`tel:${phone}`}
-        className="text-sm text-slate-800 font-mono flex items-center gap-2 hover:text-primary-dark"
-      >
-        <PhoneIcon className="w-4 h-4" />
-        {phone}
-      </a>
-
-      <div className="mt-3 border-t pt-3">
-        <h4 className="text-xs font-semibold text-slate-500 uppercase">
-          Leak Analysis
-        </h4>
-        <ul className="list-disc list-inside mt-1">
-          {leaks?.map((leak, i) => (
-            <li
-              key={i}
-              className={`text-sm font-medium ${
-                leak.includes("High")
-                  ? "text-danger-dark"
-                  : leak.includes("Medium")
-                  ? "text-cta-dark"
-                  : "text-primary-dark"
-              }`}
-            >
-              {leak}
-            </li>
-          ))}
-        </ul>
-        <h4 className="text-xs font-semibold text-slate-500 uppercase mt-2">
-          Competitor
-        </h4>
-        <p className="text-sm text-slate-700">{competitor}</p>
-      </div>
-
-      <div className="mt-4 space-y-3">
-        {/* Status Dropdown */}
-        <div>
-          <label
-            htmlFor={`status-${id}`}
-            className="text-xs font-semibold text-slate-500 uppercase"
-          >
-            Status
-          </label>
-          <select
-            id={`status-${id}`}
-            value={status}
-            onChange={(e) => onUpdateStatus(id, e.target.value)}
-            className={`block w-full rounded-md border-gray-300 shadow-sm text-sm font-medium border-l-4 ${config.color}`}
-          >
-            {columns.map((col) => (
-              <option key={col}>{col}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Log Call Button */}
-        <button
-          onClick={onLogCall}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-cta-DEFAULT px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cta-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta-dark"
-        >
-          <FireIcon className="h-5 w-5" />
-          Start Call / Log
-        </button>
-      </div>
-    </div>
+    </>
   );
 }

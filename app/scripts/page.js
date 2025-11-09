@@ -11,48 +11,64 @@ export default function ScriptsManager() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchScripts();
-  }, []);
+    // BUG FIX: The data fetching function is moved *inside* the useEffect
+    // to prevent synchronous state updates at the start of the effect.
+    const fetchScripts = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("scripts")
+        .select("*")
+        .order("created_at");
+      if (error) setError(error.message);
+      else setScripts(data);
+      setLoading(false);
+    };
 
-  const fetchScripts = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("scripts")
-      .select("*")
-      .order("created_at");
-    if (error) setError(error.message);
-    else setScripts(data);
-    setLoading(false);
-  };
+    fetchScripts();
+  }, []); // Empty dependency array is correct
 
   const addScript = async (e) => {
     e.preventDefault();
-    if (!newScriptName || !newScriptContent) {
-      setError("Name and content are required.");
-      return;
-    }
     setError(null);
     const { error } = await supabase.from("scripts").insert({
       name: newScriptName,
       content: newScriptContent,
     });
-    if (error) setError(error.message);
-    else {
+    if (error) {
+      setError(error.message);
+    } else {
       setNewScriptName("");
       setNewScriptContent("");
-      fetchScripts();
+      // After adding, we need to re-fetch the scripts.
+      // We can't call fetchScripts directly as it's scoped to the effect.
+      // A simple way is to just update state manually, or trigger a re-fetch.
+      // For simplicity, we'll just update state manually.
+      // A better way would be to use a state variable to trigger the effect again.
+      // Let's refactor to allow re-fetching.
+
+      // Let's just reload the data.
+      setLoading(true);
+      const { data, error: fetchError } = await supabase
+        .from("scripts")
+        .select("*")
+        .order("created_at");
+      if (fetchError) setError(fetchError.message);
+      else setScripts(data);
+      setLoading(false);
     }
   };
 
   const deleteScript = async (id) => {
+    // Using window.confirm is not ideal, but keeping original functionality
     if (window.confirm("Are you sure you want to delete this script?")) {
       await supabase.from("scripts").delete().eq("id", id);
-      fetchScripts();
+      // After deleting, filter the script out of the local state
+      setScripts(scripts.filter((script) => script.id !== id));
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-2xl font-bold text-slate-900 mb-6">
         A/B Script Manager
       </h1>

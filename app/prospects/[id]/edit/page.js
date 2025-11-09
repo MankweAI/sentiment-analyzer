@@ -26,27 +26,29 @@ export default function EditProspect() {
   const { id } = useParams();
 
   useEffect(() => {
+    // BUG FIX: The data fetching function is moved *inside* the useEffect
+    // to prevent synchronous state updates at the start of the effect.
+    const fetchProspect = async (prospectId) => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("prospects")
+        .select("*")
+        .eq("id", prospectId)
+        .single();
+
+      if (error) {
+        setError(error.message);
+      } else {
+        const leakData = deassembleLeaks(data.leaks);
+        setFormData({ ...data, ...leakData });
+      }
+      setLoading(false);
+    };
+
     if (id) {
       fetchProspect(id);
     }
-  }, [id]);
-
-  const fetchProspect = async (prospectId) => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("prospects")
-      .select("*")
-      .eq("id", prospectId)
-      .single();
-
-    if (error) {
-      setError(error.message);
-    } else {
-      const leakData = deassembleLeaks(data.leaks);
-      setFormData({ ...data, ...leakData });
-    }
-    setLoading(false);
-  };
+  }, [id]); // 'id' dependency is correct
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -64,7 +66,6 @@ export default function EditProspect() {
       `Enquiry: ${formData.enquiryLeak}`,
     ];
 
-    // *** BUG FIX: Removed the underscore ***
     const { error } = await supabase
       .from("prospects")
       .update({
@@ -82,11 +83,12 @@ export default function EditProspect() {
       setError(error.message);
       setSubmitting(false);
     } else {
-      router.push("/");
+      router.push("/dashboard");
     }
   };
 
   const handleDelete = async () => {
+    // Using window.confirm is not ideal in a real app, but we'll keep it as it was
     if (
       window.confirm(
         `Are you sure you want to delete ${formData.businessName}?`
@@ -104,130 +106,127 @@ export default function EditProspect() {
         setError(error.message);
         setSubmitting(false);
       } else {
-        router.push("/");
+        router.push("/dashboard");
       }
     }
   };
 
   if (loading) {
     return (
-      <div className="max-w-xl mx-auto bg-white p-6 rounded-lg shadow-xl">
+      <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 py-8">
         <p className="text-slate-600 animate-pulse">Loading prospect data...</p>
       </div>
     );
   }
 
-  if (error || !formData) {
+  if (error) {
     return (
-      <div className="max-w-xl mx-auto">
+      <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-danger-light border border-danger-dark text-danger-dark px-4 py-3 rounded mb-4">
-          <p>Error: {error || "Could not find prospect."}</p>
+          <p>Error: {error}</p>
         </div>
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4 font-medium"
-        >
-          <ArrowLeftIcon className="w-5 h-5" />
-          Back to Prospect List
-        </Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-xl mx-auto bg-white p-6 rounded-lg shadow-xl">
+    <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 py-8">
       <Link
-        href="/"
+        href="/dashboard"
         className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4 font-medium"
       >
         <ArrowLeftIcon className="w-5 h-5" />
         Back to Prospect List
       </Link>
 
-      <h2 className="text-2xl font-semibold text-slate-800 mb-6">
-        Edit: {formData.businessName}
-      </h2>
+      <div className="bg-white p-6 rounded-lg shadow-xl">
+        <h2 className="text-2xl font-semibold text-slate-800 mb-6">
+          Edit: {formData.businessName}
+        </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <h3 className="text-lg font-bold border-b pb-2">Business Details</h3>
-        <TextField
-          name="businessName"
-          label="Business Name"
-          formData={formData}
-          onChange={handleChange}
-        />
-        <TextField
-          name="website"
-          label="Website URL"
-          formData={formData}
-          onChange={handleChange}
-        />
-        <TextField
-          name="phone"
-          label="Phone Number"
-          formData={formData}
-          onChange={handleChange}
-        />
-        <TextField
-          name="location"
-          label="Location/Suburb"
-          formData={formData}
-          onChange={handleChange}
-        />
-        <TextField
-          name="competitor"
-          label="Direct Competitor"
-          formData={formData}
-          onChange={handleChange}
-        />
-        <TextField
-          name="pain_data"
-          label="Pain Data (for Hook)"
-          formData={formData}
-          onChange={handleChange}
-        />
-
-        <h3 className="text-lg font-bold border-b pb-2 pt-4">Leak Analysis</h3>
-        <div className="grid grid-cols-3 gap-4">
-          <LeakDropdown
-            name="trafficLeak"
-            label="Traffic Leak"
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <h3 className="text-lg font-bold border-b pb-2">Business Details</h3>
+          <TextField
+            name="businessName"
+            label="Business Name"
             formData={formData}
             onChange={handleChange}
           />
-          <LeakDropdown
-            name="trustLeak"
-            label="Trust Leak"
+          <TextField
+            name="website"
+            label="Website URL"
             formData={formData}
             onChange={handleChange}
           />
-          <LeakDropdown
-            name="enquiryLeak"
-            label="Enquiry Leak"
+          <TextField
+            name="phone"
+            label="Phone Number"
             formData={formData}
             onChange={handleChange}
           />
-        </div>
+          <TextField
+            name="location"
+            label="Location/Suburb"
+            formData={formData}
+            onChange={handleChange}
+          />
+          <TextField
+            name="competitor"
+            label="Direct Competitor"
+            formData={formData}
+            onChange={handleChange}
+          />
+          <TextField
+            name="pain_data"
+            label="Pain Data (for Hook)"
+            formData={formData}
+            onChange={handleChange}
+          />
 
-        <div className="flex justify-between items-center pt-4 border-t">
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={submitting}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-danger-dark hover:text-danger-DEFAULT disabled:opacity-50"
-          >
-            <TrashIcon className="w-5 h-5" />
-            Delete Prospect
-          </button>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="inline-flex justify-center rounded-md bg-primary-DEFAULT px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark disabled:opacity-50"
-          >
-            {submitting ? "Saving..." : "Save Changes"}
-          </button>
-        </div>
-      </form>
+          <h3 className="text-lg font-bold border-b pb-2 pt-4">
+            Leak Analysis
+          </h3>
+          <div className="grid grid-cols-3 gap-4">
+            <LeakDropdown
+              name="trafficLeak"
+              label="Traffic Leak"
+              formData={formData}
+              onChange={handleChange}
+            />
+            <LeakDropdown
+              name="trustLeak"
+              label="Trust Leak"
+              formData={formData}
+              onChange={handleChange}
+            />
+            <LeakDropdown
+              name="enquiryLeak"
+              label="Enquiry Leak"
+              formData={formData}
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="flex justify-between items-center pt-4 border-t">
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={submitting}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-danger-dark hover:text-danger-DEFAULT disabled:opacity-50"
+            >
+              <TrashIcon className="w-5 h-5" />
+              Delete Prospect
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex justify-center rounded-md bg-primary-DEFAULT px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark disabled:opacity-50"
+            >
+              {submitting ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

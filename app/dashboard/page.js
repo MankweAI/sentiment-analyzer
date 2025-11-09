@@ -23,10 +23,8 @@ export default function SentimentReport() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    fetchTallyData();
-  }, []);
-
+useEffect(() => {
+  // 1. Move the function *inside* the useEffect
   const fetchTallyData = async () => {
     setLoading(true);
     setError(null);
@@ -41,6 +39,7 @@ export default function SentimentReport() {
       return;
     }
 
+    // Reset tally to avoid double counting on re-fetch
     const newTally = {
       totalCalls: logs.length,
       totalConnected: 0,
@@ -89,6 +88,10 @@ export default function SentimentReport() {
     setTally(newTally);
     setLoading(false);
   };
+
+  // 2. Call the inner function
+  fetchTallyData();
+}, []);
 
   const callToMeetingRate =
     tally.totalConnected > 0
